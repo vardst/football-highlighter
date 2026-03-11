@@ -1,0 +1,9 @@
+moviepy>=2.0.0
+numpy
+scipy
+opencv-python
+ultralytics
+yt-dlp
+requests
+sahi
+huggingface_hub

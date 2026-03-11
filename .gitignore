@@ -1,0 +1,25 @@
+# Datasets
+data/
+
+# Model weights
+models/*.pt
+*.pt
+
+# Training artifacts
+runs/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# OS
+.DS_Store
+
+# Video files
+*.mp4
+
+# IDE
+.vscode/
+.idea/

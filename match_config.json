@@ -1,0 +1,44 @@
+{
+  "match": {
+    "home": "Real Madrid",
+    "away": "FC Barcelona",
+    "competition": "La Liga",
+    "date": "2024-04-21"
+  },
+  "kickoff_offsets": {
+    "first_half": 354,
+    "second_half": 3589
+  },
+  "goals": [
+    {
+      "minute": 6,
+      "scorer": "Christensen",
+      "team": "away",
+      "score_after": "0-1"
+    },
+    {
+      "minute": 18,
+      "scorer": "Vinicius",
+      "team": "home",
+      "score_after": "1-1"
+    },
+    {
+      "minute": 69,
+      "scorer": "Fermin",
+      "team": "away",
+      "score_after": "1-2"
+    },
+    {
+      "minute": 73,
+      "scorer": "Vazquez",
+      "team": "home",
+      "score_after": "2-2"
+    },
+    {
+      "minute": 91,
+      "scorer": "Bellingham",
+      "team": "home",
+      "score_after": "3-2"
+    }
+  ]
+}
