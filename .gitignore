@@ -1,9 +1,6 @@
 # Datasets
 data/
 
-# Model weights
-models/*.pt
-*.pt
 
 # Training artifacts
 runs/

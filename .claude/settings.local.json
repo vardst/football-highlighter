@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm -rf .git && git clone https://github.com/vardst/football-highlighter.git .)",
+      "Bash(python --version 2>&1 && pip --version 2>&1)",
+      "Bash(python -c \"import torch; print\\(f'PyTorch {torch.__version__}'\\); print\\(f'CUDA available: {torch.cuda.is_available\\(\\)}'\\); print\\(f'CUDA version: {torch.version.cuda}' if torch.cuda.is_available\\(\\) else 'No CUDA'\\)\" 2>&1)",
+      "Bash(pip install:*)",
+      "Bash(cd E:/Projects/football_highligter && python dashboard.py 2>&1)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8501/ 2>&1)",
+      "Bash(sleep 2 && curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8501/ && curl -s http://localhost:8501/api/status | python -m json.tool 2>&1 | head -20)",
+      "Bash(curl -s http://localhost:8501/api/status 2>&1)",
+      "Bash(cd E:/Projects/football_highligter && python -c \"\nimport dashboard\nimport json\nstatus = dashboard.parse_training_log\\(\\)\nprint\\(json.dumps\\(status, indent=2\\)[:500]\\)\n\" 2>&1)",
+      "Bash(cd E:/Projects/football_highligter && python -c \"\nimport dashboard, json\nstatus = dashboard.parse_training_log\\(\\)\nprint\\(json.dumps\\({k:v for k,v in status.items\\(\\) if k != 'log_lines'}, indent=2\\)\\)\n\" 2>&1)",
+      "Bash(sleep 2 && curl -s http://localhost:8501/api/status 2>&1 | python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({k:v for k,v in d.items\\(\\) if k!='log_lines'},indent=2\\)\\)\")",
+      "Bash(curl -s http://localhost:8501/api/status 2>&1 | python -c \"import sys,json; d=json.load\\(sys.stdin\\); [d.pop\\('log_lines',None\\)]; print\\(json.dumps\\(d,indent=2\\)\\)\")",
+      "Bash(cd E:/Projects/football_highligter && python -c \"\nimport dashboard, json\nstatus = dashboard.parse_training_log\\(\\)\ndel status['log_lines']\nprint\\(json.dumps\\(status, indent=2\\)\\)\n\" 2>&1)",
+      "Bash(taskkill //F //IM python.exe 2>/dev/null; sleep 1)",
+      "Bash(cd E:/Projects/football_highligter && python train_model.py --device 0 --batch 16 --epochs 20 2>&1 | tee training.log)",
+      "Bash(sleep 3 && cd E:/Projects/football_highligter && python dashboard.py 2>&1)",
+      "Bash(sleep 5 && curl -s http://localhost:8501/api/status 2>&1 | python -c \"import sys,json; d=json.load\\(sys.stdin\\); d.pop\\('log_lines',None\\); print\\(json.dumps\\(d,indent=2\\)\\)\")",
+      "Bash(curl -s http://localhost:8501/api/status 2>&1 | python -c \"import sys,json; d=json.load\\(sys.stdin\\); d.pop\\('log_lines',None\\); print\\(json.dumps\\(d,indent=2\\)\\)\")",
+      "Bash(curl -s http://localhost:8501/ 2>&1 | head -3)",
+      "Bash(tasklist //FI \"IMAGENAME eq python.exe\" //FO CSV 2>/dev/null | grep dashboard || echo \"no dashboard running\")",
+      "Bash(tasklist //FI \"IMAGENAME eq python.exe\" //FO CSV 2>/dev/null)",
+      "Bash(wmic process:*)",
+      "Bash(taskkill //PID 37256 //F 2>&1)",
+      "Bash(sleep 2 && curl -s http://localhost:8501/api/status 2>&1 | python -c \"import sys,json; d=json.load\\(sys.stdin\\); d.pop\\('log_lines',None\\); print\\(json.dumps\\(d,indent=2\\)\\)\")",
+      "Bash(python -c \"import zipfile; z=zipfile.ZipFile\\('E:/Projects/football_highligter/data/SoccerNet_v3_H250.zip'\\); print\\(f'Files: {len\\(z.namelist\\(\\)\\)}'\\); z.testzip\\(\\) or print\\('ZIP OK'\\)\" 2>&1)",
+      "Bash(python -c \"\nimport zipfile\nz = zipfile.ZipFile\\('E:/Projects/football_highligter/data/SoccerNet_v3_H250.zip'\\)\nbad = z.testzip\\(\\)\nif bad:\n    print\\(f'First bad file: {bad}'\\)\nelse:\n    print\\('ZIP integrity OK - all files valid'\\)\n\" 2>&1)",
+      "Bash(sleep 2 && curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8501/)",
+      "Bash(python -c \"import torch; print\\(torch.__version__\\); import ultralytics; print\\(ultralytics.__version__\\)\")",
+      "Bash(cd E:/Projects/football_highligter && TORCHDYNAMO_DISABLE=1 python train_model.py --resume --device 0 --batch 16 2>&1 | tee training.log)",
+      "Bash(cd E:/Projects/football_highligter && TORCHDYNAMO_DISABLE=1 python train_model.py --device 0 --batch 16 --epochs 20 2>&1 | tee training.log)",
+      "Bash(sleep 5 && curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8501/ && echo \" OK\" && curl -s http://localhost:8501/api/status | python -c \"import sys,json; d=json.load\\(sys.stdin\\); d.pop\\('log_lines',None\\); print\\(json.dumps\\(d,indent=2\\)\\)\")"
+    ]
+  }
+}
