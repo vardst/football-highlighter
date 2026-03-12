@@ -411,6 +411,134 @@ footer p + p {
     margin-top: 0.25rem;
 }
 
+/* Upload input tabs */
+.input-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.input-tab {
+    flex: 1;
+    padding: 0.6rem 1rem;
+    background: var(--surface-hover);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.input-tab:hover {
+    color: var(--text);
+    border-color: var(--text-dim);
+}
+
+.input-tab.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+/* YouTube URL panel */
+.url-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.url-row input[type="url"] {
+    flex: 1;
+    padding: 0.6rem 0.75rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 0.9rem;
+    font-family: inherit;
+}
+
+.url-row input[type="url"]:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.btn-fetch {
+    padding: 0.6rem 1.25rem;
+    background: var(--accent);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s;
+}
+
+.btn-fetch:hover {
+    background: var(--accent-hover);
+}
+
+.btn-fetch:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Download progress */
+.download-progress {
+    margin-top: 0.75rem;
+}
+
+.download-progress .progress-bar-container {
+    margin-bottom: 0.5rem;
+}
+
+.download-status {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+}
+
+.download-error {
+    font-size: 0.8rem;
+    color: var(--error);
+    margin-top: 0.5rem;
+}
+
+/* Instance settings */
+.instance-settings {
+    margin-top: 0.75rem;
+    font-size: 0.8rem;
+}
+
+.instance-settings summary {
+    color: var(--text-dim);
+    cursor: pointer;
+    margin-bottom: 0.5rem;
+}
+
+.instance-settings .form-row {
+    margin-bottom: 0;
+}
+
+.instance-settings input[type="url"] {
+    width: 100%;
+    padding: 0.4rem 0.6rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 0.8rem;
+    font-family: inherit;
+}
+
+.instance-settings input[type="url"]:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
 /* Utility */
 .hidden {
     display: none !important;

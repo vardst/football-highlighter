@@ -23,8 +23,17 @@ const state = {
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
+const filePanel = $("#file-panel");
+const youtubePanel = $("#youtube-panel");
 const dropZone = $("#drop-zone");
 const fileInput = $("#file-input");
+const youtubeUrl = $("#youtube-url");
+const fetchBtn = $("#fetch-btn");
+const downloadProgress = $("#download-progress");
+const downloadBar = $("#download-bar");
+const downloadStatus = $("#download-status");
+const downloadError = $("#download-error");
+const cobaltInstance = $("#cobalt-instance");
 const fileInfo = $("#file-info");
 const fileName = $("#file-name");
 const clearFileBtn = $("#clear-file");
@@ -44,6 +53,37 @@ const resultsList = $("#results-list");
 const topPercentSlider = $("#top-percent");
 const mergeGapSlider = $("#merge-gap");
 const maxDurationSlider = $("#max-duration");
+
+// ── Input tab switching ──────────────────────────────────────────────────
+
+$$(".input-tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+        $$(".input-tab").forEach((t) => t.classList.remove("active"));
+        tab.classList.add("active");
+
+        if (tab.dataset.input === "file") {
+            filePanel.classList.remove("hidden");
+            youtubePanel.classList.add("hidden");
+        } else {
+            filePanel.classList.add("hidden");
+            youtubePanel.classList.remove("hidden");
+        }
+    });
+});
+
+// ── Cobalt instance persistence ─────────────────────────────────────────
+
+const DEFAULT_COBALT = "https://api.cobalt.tools";
+cobaltInstance.value = localStorage.getItem("cobalt-instance") || DEFAULT_COBALT;
+cobaltInstance.addEventListener("change", () => {
+    const val = cobaltInstance.value.trim();
+    if (val && val !== DEFAULT_COBALT) {
+        localStorage.setItem("cobalt-instance", val);
+    } else {
+        localStorage.removeItem("cobalt-instance");
+        cobaltInstance.value = DEFAULT_COBALT;
+    }
+});
 
 // ── File upload ──────────────────────────────────────────────────────────
 
@@ -74,11 +114,14 @@ fileInput.addEventListener("change", () => {
 clearFileBtn.addEventListener("click", () => {
     state.file = null;
     fileInput.value = "";
+    youtubeUrl.value = "";
     dropZone.classList.remove("hidden");
     fileInfo.classList.add("hidden");
     modeSection.classList.add("hidden");
     progressSection.classList.add("hidden");
     resultsSection.classList.add("hidden");
+    downloadProgress.classList.add("hidden");
+    downloadError.classList.add("hidden");
 });
 
 function setFile(file) {
@@ -89,6 +132,156 @@ function setFile(file) {
     fileInfo.classList.remove("hidden");
     modeSection.classList.remove("hidden");
 }
+
+// ── YouTube URL fetch ────────────────────────────────────────────────────
+
+function parseYouTubeUrl(input) {
+    const str = input.trim();
+    try {
+        const url = new URL(str);
+        const host = url.hostname.replace("www.", "");
+
+        // youtube.com/watch?v=ID
+        if (host === "youtube.com" && url.pathname === "/watch") {
+            const id = url.searchParams.get("v");
+            if (id) return str;
+        }
+        // youtube.com/shorts/ID
+        if (host === "youtube.com" && url.pathname.startsWith("/shorts/")) {
+            return str;
+        }
+        // youtu.be/ID
+        if (host === "youtu.be" && url.pathname.length > 1) {
+            return str;
+        }
+        // youtube.com/embed/ID
+        if (host === "youtube.com" && url.pathname.startsWith("/embed/")) {
+            return str;
+        }
+    } catch {
+        // not a valid URL
+    }
+    return null;
+}
+
+async function fetchYouTubeVideo(url) {
+    const instance = cobaltInstance.value.trim() || DEFAULT_COBALT;
+
+    downloadError.classList.add("hidden");
+    downloadProgress.classList.remove("hidden");
+    downloadBar.style.width = "0%";
+    downloadStatus.textContent = "Requesting video...";
+    fetchBtn.disabled = true;
+
+    try {
+        // Call cobalt API
+        const apiResp = await fetch(instance + "/", {
+            method: "POST",
+            headers: {
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                url,
+                videoQuality: "720",
+                filenameStyle: "basic",
+            }),
+        });
+
+        if (!apiResp.ok) {
+            const body = await apiResp.json().catch(() => ({}));
+            throw new Error(body.error?.code || `API returned ${apiResp.status}`);
+        }
+
+        const data = await apiResp.json();
+
+        if (data.status === "error") {
+            throw new Error(data.error?.code || "API error");
+        }
+
+        const videoUrl = data.url;
+        if (!videoUrl) {
+            throw new Error("No download URL returned. The video may be unavailable or restricted.");
+        }
+
+        // Stream-download the video with progress
+        downloadStatus.textContent = "Downloading video...";
+        const dlResp = await fetch(videoUrl);
+        if (!dlResp.ok) throw new Error(`Download failed: ${dlResp.status}`);
+
+        const contentLength = dlResp.headers.get("Content-Length");
+        const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
+        const reader = dlResp.body.getReader();
+        const chunks = [];
+        let received = 0;
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value);
+            received += value.length;
+
+            if (totalBytes > 0) {
+                const pct = Math.round((received / totalBytes) * 100);
+                downloadBar.style.width = `${pct}%`;
+                const mb = (received / 1024 / 1024).toFixed(1);
+                const totalMb = (totalBytes / 1024 / 1024).toFixed(0);
+                downloadStatus.textContent = `Downloading... ${mb} / ${totalMb} MB (${pct}%)`;
+            } else {
+                const mb = (received / 1024 / 1024).toFixed(1);
+                downloadStatus.textContent = `Downloading... ${mb} MB`;
+                // Indeterminate: pulse between 20-80%
+                downloadBar.style.width = `${20 + (received % 60)}%`;
+            }
+        }
+
+        downloadBar.style.width = "100%";
+        downloadStatus.textContent = "Processing...";
+
+        const blob = new Blob(chunks, { type: "video/mp4" });
+        // Extract a filename from the URL or use a default
+        const fname = extractFilename(videoUrl) || "youtube-video.mp4";
+        const file = new File([blob], fname, { type: "video/mp4" });
+
+        downloadStatus.textContent = "Ready!";
+        setFile(file);
+    } catch (err) {
+        downloadProgress.classList.add("hidden");
+        downloadError.classList.remove("hidden");
+        downloadError.textContent = `Failed: ${err.message}`;
+        console.error("YouTube fetch error:", err);
+    } finally {
+        fetchBtn.disabled = false;
+    }
+}
+
+function extractFilename(url) {
+    try {
+        const pathname = new URL(url).pathname;
+        const parts = pathname.split("/").filter(Boolean);
+        const last = parts[parts.length - 1];
+        if (last && last.includes(".")) return decodeURIComponent(last);
+    } catch { /* ignore */ }
+    return null;
+}
+
+fetchBtn.addEventListener("click", () => {
+    const url = parseYouTubeUrl(youtubeUrl.value);
+    if (!url) {
+        downloadError.classList.remove("hidden");
+        downloadError.textContent = "Invalid YouTube URL. Paste a youtube.com or youtu.be link.";
+        return;
+    }
+    downloadError.classList.add("hidden");
+    fetchYouTubeVideo(url);
+});
+
+youtubeUrl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+        e.preventDefault();
+        fetchBtn.click();
+    }
+});
 
 // ── Mode tabs ────────────────────────────────────────────────────────────
 

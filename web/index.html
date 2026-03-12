@@ -15,12 +15,43 @@
     <main>
         <!-- Upload -->
         <section id="upload-section" class="card">
-            <div id="drop-zone">
-                <div class="drop-icon">&#9917;</div>
-                <p>Drag & drop match video here</p>
-                <p class="hint">or click to browse</p>
-                <input type="file" id="file-input" accept="video/*" hidden>
+            <div class="input-tabs">
+                <button class="input-tab active" data-input="file">File Upload</button>
+                <button class="input-tab" data-input="youtube">YouTube URL</button>
             </div>
+
+            <!-- File upload panel -->
+            <div id="file-panel">
+                <div id="drop-zone">
+                    <div class="drop-icon">&#9917;</div>
+                    <p>Drag & drop match video here</p>
+                    <p class="hint">or click to browse</p>
+                    <input type="file" id="file-input" accept="video/*" hidden>
+                </div>
+            </div>
+
+            <!-- YouTube URL panel -->
+            <div id="youtube-panel" class="hidden">
+                <div class="url-row">
+                    <input type="url" id="youtube-url" placeholder="https://www.youtube.com/watch?v=...">
+                    <button id="fetch-btn" class="btn-fetch">Fetch</button>
+                </div>
+                <div id="download-progress" class="download-progress hidden">
+                    <div class="progress-bar-container">
+                        <div id="download-bar" class="progress-bar"></div>
+                    </div>
+                    <p id="download-status" class="download-status"></p>
+                </div>
+                <div id="download-error" class="download-error hidden"></div>
+                <details class="instance-settings">
+                    <summary>API Instance</summary>
+                    <div class="form-row">
+                        <label>Cobalt instance URL</label>
+                        <input type="url" id="cobalt-instance" placeholder="https://api.cobalt.tools">
+                    </div>
+                </details>
+            </div>
+
             <div id="file-info" class="hidden">
                 <span id="file-name"></span>
                 <button id="clear-file" class="btn-small">Clear</button>

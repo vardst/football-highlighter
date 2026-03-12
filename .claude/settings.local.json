@@ -37,7 +37,8 @@
       "Bash(python -u:*)",
       "Bash(ls:*)",
       "Bash(ffprobe:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "WebSearch"
     ]
   }
 }
