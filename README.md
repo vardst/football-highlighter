@@ -7,6 +7,10 @@ Full Match .mp4 ──► Detect Highlights ──► Cut Clips ──► Crop 9
                     (audio / CV)          (ffmpeg)      (YOLO/center)  (+ color grade)
 ```
 
+## Demo
+
+**[Try it in the browser](https://vardst.github.io/football-highlighter/)** — runs entirely client-side, no uploads or installs needed.
+
 ## Features
 
 - **Audio-based detection** — crowd noise spike analysis with median filtering and percentile thresholds
@@ -17,7 +21,7 @@ Full Match .mp4 ──► Detect Highlights ──► Cut Clips ──► Crop 9
 - **OCR kickoff detection** — reads broadcast match clock via EasyOCR to sync match time to video time
 - **Color grading** — cinematic, dramatic, vibrant presets via ffmpeg
 - **Custom YOLO model** — trained on SoccerNet + Soccana datasets (44K images) for 60-80% ball detection vs 14-27% with COCO
-- **Browser version** — runs entirely client-side with Web Audio API + ffmpeg.wasm ([try it](web/index.html))
+- **Browser version** — runs entirely client-side with Web Audio API + ffmpeg.wasm ([try it](https://vardst.github.io/football-highlighter/))
 
 ## Quick Start
 
