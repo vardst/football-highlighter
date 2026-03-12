@@ -217,17 +217,24 @@ def smooth_positions(raw_positions, cuts, total_frames, fps,
 
 # ── Render ───────────────────────────────────────────────────────────────
 
-def render_smart_crop(input_path, output_path, smoothed_centers):
+def render_smart_crop(input_path, output_path, smoothed_centers, aspect="9:16"):
     """
     Render the video with per-frame crop piped through ffmpeg.
+
+    Args:
+        aspect: "9:16" for vertical or "1:1" for square
     """
     cap = cv2.VideoCapture(input_path)
     fps = cap.get(cv2.CAP_PROP_FPS)
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-    crop_w = int(h * 9 / 16)
-    out_w, out_h = 1080, 1920
+    if aspect == "1:1":
+        crop_w = h  # square: crop width = frame height
+        out_w, out_h = 1080, 1080
+    else:
+        crop_w = int(h * 9 / 16)
+        out_w, out_h = 1080, 1920
 
     ffmpeg_cmd = [
         "ffmpeg", "-y",
@@ -276,14 +283,17 @@ def render_smart_crop(input_path, output_path, smoothed_centers):
 # ── Public API ───────────────────────────────────────────────────────────
 
 def smart_crop_video(input_path, output_path, sample_every=2, alpha=0.12,
-                     model_path=None, use_sahi=False):
+                     model_path=None, use_sahi=False, aspect="9:16"):
     """
     Full pipeline: detect cuts → analyse ball/player positions →
     smooth with velocity clamping → render.
+
+    Args:
+        aspect: "9:16" for vertical or "1:1" for square
     """
     raw_positions, cuts, fps, w, h = analyze_action_positions(
         input_path, sample_every, model_path=model_path, use_sahi=use_sahi
     )
     total_frames = int(cv2.VideoCapture(input_path).get(cv2.CAP_PROP_FRAME_COUNT))
     smoothed = smooth_positions(raw_positions, cuts, total_frames, fps, alpha=alpha)
-    render_smart_crop(input_path, output_path, smoothed)
+    render_smart_crop(input_path, output_path, smoothed, aspect=aspect)

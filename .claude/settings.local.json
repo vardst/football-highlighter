@@ -31,7 +31,13 @@
       "Bash(python -c \"import torch; print\\(torch.__version__\\); import ultralytics; print\\(ultralytics.__version__\\)\")",
       "Bash(cd E:/Projects/football_highligter && TORCHDYNAMO_DISABLE=1 python train_model.py --resume --device 0 --batch 16 2>&1 | tee training.log)",
       "Bash(cd E:/Projects/football_highligter && TORCHDYNAMO_DISABLE=1 python train_model.py --device 0 --batch 16 --epochs 20 2>&1 | tee training.log)",
-      "Bash(sleep 5 && curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8501/ && echo \" OK\" && curl -s http://localhost:8501/api/status | python -c \"import sys,json; d=json.load\\(sys.stdin\\); d.pop\\('log_lines',None\\); print\\(json.dumps\\(d,indent=2\\)\\)\")"
+      "Bash(sleep 5 && curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8501/ && echo \" OK\" && curl -s http://localhost:8501/api/status | python -c \"import sys,json; d=json.load\\(sys.stdin\\); d.pop\\('log_lines',None\\); print\\(json.dumps\\(d,indent=2\\)\\)\")",
+      "Bash(source:*)",
+      "Bash(python pipeline.py:*)",
+      "Bash(python -u:*)",
+      "Bash(ls:*)",
+      "Bash(ffprobe:*)",
+      "Bash(python3:*)"
     ]
   }
 }

@@ -1,9 +1,11 @@
 # Datasets
 data/
 
-
 # Training artifacts
 runs/
+
+# Models (keep directory with .gitkeep)
+models/*.pt
 
 # Python
 __pycache__/
@@ -16,6 +18,9 @@ venv/
 
 # Video files
 *.mp4
+
+# Output directories
+goals_*/
 
 # IDE
 .vscode/

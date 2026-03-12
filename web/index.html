@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Football Highlighter</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Football Highlighter</h1>
+        <p class="subtitle">Drop a match video, get highlight clips. Runs entirely in your browser.</p>
+    </header>
+
+    <main>
+        <!-- Upload -->
+        <section id="upload-section" class="card">
+            <div id="drop-zone">
+                <div class="drop-icon">&#9917;</div>
+                <p>Drag & drop match video here</p>
+                <p class="hint">or click to browse</p>
+                <input type="file" id="file-input" accept="video/*" hidden>
+            </div>
+            <div id="file-info" class="hidden">
+                <span id="file-name"></span>
+                <button id="clear-file" class="btn-small">Clear</button>
+            </div>
+        </section>
+
+        <!-- Mode Selection -->
+        <section id="mode-section" class="card hidden">
+            <h2>Mode</h2>
+            <div class="mode-tabs">
+                <button class="tab active" data-mode="goals">Goals</button>
+                <button class="tab" data-mode="highlights">Highlights</button>
+            </div>
+
+            <!-- Goals Config -->
+            <div id="goals-config">
+                <div class="form-row">
+                    <label>Home Team</label>
+                    <input type="text" id="home-team" value="Home" placeholder="e.g. Real Madrid">
+                </div>
+                <div class="form-row">
+                    <label>Away Team</label>
+                    <input type="text" id="away-team" value="Away" placeholder="e.g. FC Barcelona">
+                </div>
+                <div class="form-row">
+                    <label>1st Half Kickoff (seconds)</label>
+                    <input type="number" id="kickoff-1st" value="0" min="0">
+                </div>
+                <div class="form-row">
+                    <label>2nd Half Kickoff (seconds)</label>
+                    <input type="number" id="kickoff-2nd" value="2700" min="0">
+                </div>
+
+                <h3>Goals</h3>
+                <div id="goals-list"></div>
+                <button id="add-goal" class="btn-small">+ Add Goal</button>
+
+                <details class="config-import">
+                    <summary>Import from JSON</summary>
+                    <textarea id="config-json" rows="6" placeholder='Paste match_config.json contents...'></textarea>
+                    <button id="import-config" class="btn-small">Import</button>
+                </details>
+            </div>
+
+            <!-- Highlights Config -->
+            <div id="highlights-config" class="hidden">
+                <div class="form-row">
+                    <label>Sensitivity (top %)</label>
+                    <input type="range" id="top-percent" min="3" max="30" value="10">
+                    <span id="top-percent-val">10%</span>
+                </div>
+                <div class="form-row">
+                    <label>Merge gap (seconds)</label>
+                    <input type="range" id="merge-gap" min="10" max="120" value="60">
+                    <span id="merge-gap-val">60s</span>
+                </div>
+                <div class="form-row">
+                    <label>Max duration (minutes)</label>
+                    <input type="range" id="max-duration" min="1" max="10" value="3">
+                    <span id="max-duration-val">3min</span>
+                </div>
+            </div>
+
+            <!-- Common Options -->
+            <div class="options-row">
+                <div class="form-row">
+                    <label>Aspect Ratio</label>
+                    <select id="aspect-ratio">
+                        <option value="9:16">9:16 Vertical</option>
+                        <option value="1:1">1:1 Square</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label>Color Grade</label>
+                    <select id="color-grade">
+                        <option value="cinematic">Cinematic</option>
+                        <option value="dramatic">Dramatic</option>
+                        <option value="vibrant">Vibrant</option>
+                        <option value="none">None</option>
+                    </select>
+                </div>
+            </div>
+
+            <button id="start-btn" class="btn-primary">Generate Highlights</button>
+        </section>
+
+        <!-- Progress -->
+        <section id="progress-section" class="card hidden">
+            <h2>Processing</h2>
+            <div id="progress-steps"></div>
+            <div class="progress-bar-container">
+                <div id="progress-bar" class="progress-bar"></div>
+            </div>
+            <p id="progress-status">Initializing...</p>
+        </section>
+
+        <!-- Results -->
+        <section id="results-section" class="card hidden">
+            <h2>Results</h2>
+            <div id="results-list"></div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Runs entirely in your browser using <a href="https://github.com/ffmpegwasm/ffmpeg.wasm" target="_blank">ffmpeg.wasm</a> + Web Audio API</p>
+        <p><a href="https://github.com/vardst/football-highlighter" target="_blank">Python CLI version</a> for YOLO smart crop, OCR kickoff detection, and combined audio+CV detection</p>
+    </footer>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>

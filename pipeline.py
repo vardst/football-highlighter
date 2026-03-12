@@ -52,6 +52,7 @@ def run_pipeline(
     max_duration_min=3,
     model_path=None,
     use_sahi=False,
+    aspect="9:16",
 ):
     if not os.path.isfile(input_path):
         print(f"Error: input file not found: {input_path}")
@@ -137,17 +138,20 @@ def run_pipeline(
         capture_output=True,
     )
 
-    # ── 5. Crop to 9:16 ───────────────────────────────────────────────
-    print(f"[4/5] Cropping to 9:16 ({crop_mode})...")
+    # ── 5. Crop to target aspect ratio ──────────────────────────────
+    print(f"[4/5] Cropping to {aspect} ({crop_mode})...")
     cropped_path = os.path.join(tmp_dir, "cropped.mp4")
 
     if crop_mode == "smart":
         from smart_crop import smart_crop_video
         smart_crop_video(concat_path, cropped_path, model_path=model_path,
-                         use_sahi=use_sahi)
+                         use_sahi=use_sahi, aspect=aspect)
     else:
         # Center crop
-        vf = "crop=in_h*9/16:in_h,scale=1080:1920"
+        if aspect == "1:1":
+            vf = "crop=in_h:in_h,scale=1080:1080"
+        else:
+            vf = "crop=in_h*9/16:in_h,scale=1080:1920"
         subprocess.run(
             ["ffmpeg", "-y", "-i", concat_path,
              "-vf", vf,
@@ -189,6 +193,7 @@ def run_goals_pipeline(
     output_dir=None,
     model_path=None,
     use_sahi=False,
+    aspect="9:16",
 ):
     """
     Goal-focused pipeline: extracts each goal as a separate clip
@@ -258,14 +263,17 @@ def run_goals_pipeline(
         print(f"    Cut clip: {clip_start:.0f}s - {clip_end:.0f}s "
               f"({clip_duration:.0f}s)")
 
-        # Step B: Crop to 9:16
+        # Step B: Crop to target aspect ratio
         cropped_clip = os.path.join(tmp_dir, f"cropped_{goal_num}.mp4")
         if crop_mode == "smart":
             from smart_crop import smart_crop_video
             smart_crop_video(raw_clip, cropped_clip, model_path=model_path,
-                             use_sahi=use_sahi)
+                             use_sahi=use_sahi, aspect=aspect)
         else:
-            vf = "crop=in_h*9/16:in_h,scale=1080:1920"
+            if aspect == "1:1":
+                vf = "crop=in_h:in_h,scale=1080:1080"
+            else:
+                vf = "crop=in_h*9/16:in_h,scale=1080:1920"
             subprocess.run(
                 ["ffmpeg", "-y", "-i", raw_clip,
                  "-vf", vf,
@@ -274,7 +282,7 @@ def run_goals_pipeline(
                  cropped_clip],
                 capture_output=True,
             )
-        print(f"    Cropped to 9:16")
+        print(f"    Cropped to {aspect}")
 
         # Step C: Apply score overlay + color grade in one pass
         gw_with_match = {
@@ -351,6 +359,10 @@ Examples:
     parser.add_argument("--sahi", action="store_true",
                         help="Enable SAHI sliced inference for better ball detection "
                         "(slower but more accurate)")
+    parser.add_argument("--aspect", choices=["9:16", "1:1"], default="9:16",
+                        help="Output aspect ratio: 9:16 (vertical) or 1:1 (square)")
+    parser.add_argument("--output-dir", default=None,
+                        help="Output directory for goal clips (default: same as input)")
 
     args = parser.parse_args()
 
@@ -364,8 +376,10 @@ Examples:
             args.config,
             crop_mode=args.crop,
             color_grade=args.grade,
+            output_dir=args.output_dir,
             model_path=model,
             use_sahi=args.sahi,
+            aspect=args.aspect,
         )
     else:
         run_pipeline(
@@ -378,4 +392,5 @@ Examples:
             max_duration_min=args.max_duration,
             model_path=model,
             use_sahi=args.sahi,
+            aspect=args.aspect,
         )
