@@ -311,6 +311,38 @@ header .subtitle {
     margin-bottom: 0.5rem;
 }
 
+/* Video player */
+.player-card { display: none; }
+.player-card.active { display: block; }
+
+.player-wrap {
+    position: relative;
+    width: 100%;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    aspect-ratio: 16 / 9;
+}
+
+.player-wrap video {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.player-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    background: rgba(0,0,0,0.6);
+}
+
+.player-loading.hidden { display: none; }
+
 footer {
     text-align: center;
     padding: 1.5rem 1rem;
@@ -319,6 +351,7 @@ footer {
     border-top: 1px solid var(--border);
 }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
 </head>
 <body>
 
@@ -355,6 +388,15 @@ footer {
                 <tbody id="stream-tbody">
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <!-- Video Player (shown when watching) -->
+    <div class="card player-card" id="player-card">
+        <h2>Live Stream</h2>
+        <div class="player-wrap">
+            <video id="player" muted playsinline></video>
+            <div class="player-loading" id="player-loading">Connecting to stream...</div>
         </div>
     </div>
 
@@ -397,6 +439,8 @@ footer {
 const API = '';
 let streams = [];
 let pollTimer = null;
+let hls = null;
+let playerAttached = false;
 
 // ── Streams ──────────────────────────────────────────────────────
 
@@ -505,6 +549,8 @@ async function startWatch(url, strategy) {
         const data = await resp.json();
         if (!resp.ok) { alert(data.error || 'Failed to start watching'); return; }
         startPolling();
+        // Delay player init to give HLS transcoder time to produce the first segments
+        setTimeout(initPlayer, 6000);
     } catch (e) {
         alert('Error starting watch');
     }
@@ -514,6 +560,72 @@ async function stopWatch() {
     try {
         await fetch(`${API}/api/watch/stop`, { method: 'POST' });
     } catch (e) {}
+    destroyPlayer();
+}
+
+// ── HLS Player ───────────────────────────────────────────────────
+
+function initPlayer() {
+    if (playerAttached) return;
+    const video = document.getElementById('player');
+    const card = document.getElementById('player-card');
+    const loading = document.getElementById('player-loading');
+
+    card.classList.add('active');
+    loading.classList.remove('hidden');
+
+    const hlsUrl = `${API}/api/watch/hls/stream.m3u8`;
+
+    if (Hls.isSupported()) {
+        hls = new Hls({
+            liveSyncDurationCount: 3,
+            liveMaxLatencyDurationCount: 6,
+            enableWorker: true,
+            lowLatencyMode: true,
+        });
+        hls.loadSource(hlsUrl);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            loading.classList.add('hidden');
+            video.play().catch(() => {});
+        });
+        hls.on(Hls.Events.ERROR, (event, data) => {
+            if (data.fatal) {
+                if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                    // Retry after delay (stream may still be starting)
+                    setTimeout(() => { if (hls) hls.startLoad(); }, 3000);
+                } else {
+                    loading.textContent = 'Stream playback error';
+                    loading.classList.remove('hidden');
+                }
+            }
+        });
+        playerAttached = true;
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        // Native HLS (Safari)
+        video.src = hlsUrl;
+        video.addEventListener('loadedmetadata', () => {
+            loading.classList.add('hidden');
+            video.play().catch(() => {});
+        });
+        playerAttached = true;
+    } else {
+        loading.textContent = 'HLS not supported in this browser';
+    }
+}
+
+function destroyPlayer() {
+    if (hls) {
+        hls.destroy();
+        hls = null;
+    }
+    playerAttached = false;
+    const video = document.getElementById('player');
+    video.src = '';
+    video.load();
+    document.getElementById('player-card').classList.remove('active');
+    document.getElementById('player-loading').textContent = 'Connecting to stream...';
+    document.getElementById('player-loading').classList.remove('hidden');
 }
 
 // ── Polling ──────────────────────────────────────────────────────
@@ -594,6 +706,11 @@ function updateSessionPanel(data) {
     }
 
     panel.innerHTML = '<div class="session-empty">No active session. Click Record or Watch on a stream above.</div>';
+
+    // Hide player if not watching
+    if (!data.watching || data.watching.status === 'stopped') {
+        if (playerAttached) destroyPlayer();
+    }
 }
 
 function updateHighlightsPanel(highlights) {

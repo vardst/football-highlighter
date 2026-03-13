@@ -69,6 +69,7 @@ app = Flask(__name__)
 RECORDINGS_DIR = os.path.join(_BASE, "recordings")
 HIGHLIGHTS_DIR = os.path.join(_BASE, "live_highlights")
 SEGMENT_DIR = "/tmp/live_segments_dashboard"
+HLS_DIR = "/tmp/live_hls_dashboard"
 
 
 @app.route("/")
@@ -292,7 +293,7 @@ def _segment_monitor(segment_dir, stop_event, detector):
 
 
 def _watch_thread(url, strategy, stop_event, detector):
-    """Background ffmpeg segmentation + monitoring."""
+    """Background ffmpeg segmentation + HLS transcoding + monitoring."""
     norm_url = normalize_stream_url(url)
 
     # Clean and recreate segment dir
@@ -300,6 +301,12 @@ def _watch_thread(url, strategy, stop_event, detector):
         shutil.rmtree(SEGMENT_DIR, ignore_errors=True)
     os.makedirs(SEGMENT_DIR, exist_ok=True)
 
+    # Clean and recreate HLS dir
+    if os.path.isdir(HLS_DIR):
+        shutil.rmtree(HLS_DIR, ignore_errors=True)
+    os.makedirs(HLS_DIR, exist_ok=True)
+
+    # Detection segmenter (MP4 segments for LiveDetector)
     segment_pattern = os.path.join(SEGMENT_DIR, "seg_%04d.mp4")
     cmd = [
         "ffmpeg", "-y",
@@ -318,9 +325,37 @@ def _watch_thread(url, strategy, stop_event, detector):
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
+    # HLS transcoder for browser playback
+    hls_playlist = os.path.join(HLS_DIR, "stream.m3u8")
+    hls_segment_pattern = os.path.join(HLS_DIR, "seg_%03d.ts")
+    hls_cmd = [
+        "ffmpeg", "-y",
+        "-reconnect", "1",
+        "-reconnect_streamed", "1",
+        "-reconnect_delay_max", "30",
+        "-i", norm_url,
+        "-c:v", "libx264",
+        "-preset", "ultrafast",
+        "-tune", "zerolatency",
+        "-g", "48",
+        "-sc_threshold", "0",
+        "-c:a", "aac",
+        "-b:a", "128k",
+        "-f", "hls",
+        "-hls_time", "4",
+        "-hls_list_size", "10",
+        "-hls_flags", "delete_segments+append_list",
+        "-hls_segment_filename", hls_segment_pattern,
+        hls_playlist,
+    ]
+
+    hls_proc = subprocess.Popen(hls_cmd, stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
     with state.lock:
         if state.watching:
             state.watching["proc"] = proc
+            state.watching["hls_proc"] = hls_proc
             state.watching["status"] = "connected"
 
     # Start segment monitor
@@ -333,6 +368,15 @@ def _watch_thread(url, strategy, stop_event, detector):
 
     proc.wait()
 
+    # Stop HLS transcoder
+    if hls_proc.poll() is None:
+        try:
+            hls_proc.stdin.write(b"q")
+            hls_proc.stdin.flush()
+            hls_proc.wait(timeout=5)
+        except (BrokenPipeError, OSError):
+            hls_proc.terminate()
+
     stop_event.set()
     monitor_thread.join(timeout=5)
 
@@ -340,6 +384,7 @@ def _watch_thread(url, strategy, stop_event, detector):
         if state.watching:
             state.watching["status"] = "stopped"
             state.watching["proc"] = None
+            state.watching["hls_proc"] = None
 
 
 @app.route("/api/watch/start", methods=["POST"])
@@ -397,19 +442,43 @@ def api_watch_stop():
         if not watch or watch["status"] not in ("connecting", "connected"):
             return jsonify({"error": "Not watching"}), 409
         proc = watch.get("proc")
+        hls_proc = watch.get("hls_proc")
         stop_event = watch.get("stop_event")
 
     if stop_event:
         stop_event.set()
 
-    if proc and proc.poll() is None:
-        try:
-            proc.stdin.write(b"q")
-            proc.stdin.flush()
-        except (BrokenPipeError, OSError):
-            proc.terminate()
+    for p in [proc, hls_proc]:
+        if p and p.poll() is None:
+            try:
+                p.stdin.write(b"q")
+                p.stdin.flush()
+            except (BrokenPipeError, OSError):
+                p.terminate()
 
     return jsonify({"status": "stopping"})
+
+
+# ── HLS stream serving ────────────────────────────────────────────────
+
+@app.route("/api/watch/hls/<path:filename>")
+def api_watch_hls(filename):
+    """Serve HLS playlist and segments for browser playback."""
+    filepath = os.path.join(HLS_DIR, filename)
+    if not os.path.isfile(filepath):
+        return jsonify({"error": "Not found"}), 404
+
+    if filename.endswith(".m3u8"):
+        mimetype = "application/vnd.apple.mpegurl"
+    elif filename.endswith(".ts"):
+        mimetype = "video/mp2t"
+    else:
+        mimetype = "application/octet-stream"
+
+    resp = send_file(filepath, mimetype=mimetype)
+    resp.headers["Cache-Control"] = "no-cache, no-store"
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp
 
 
 # ── Status (unified polling endpoint) ─────────────────────────────────
@@ -499,10 +568,11 @@ def _cleanup():
         proc = state.recording["proc"]
         if proc.poll() is None:
             proc.terminate()
-    if state.watching and state.watching.get("proc"):
-        proc = state.watching["proc"]
-        if proc.poll() is None:
-            proc.terminate()
+    if state.watching:
+        for key in ("proc", "hls_proc"):
+            p = state.watching.get(key)
+            if p and p.poll() is None:
+                p.terminate()
         stop = state.watching.get("stop_event")
         if stop:
             stop.set()
