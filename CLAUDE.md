@@ -1,18 +1,24 @@
 # Football Highlighter
 
-Automated soccer highlight pipeline: full match video in, polished 9:16 vertical clips out.
+Stream-first football highlight pipeline: discover streams, watch live with real-time detection, or process recorded matches into polished 9:16 vertical clips.
 
 ## Architecture
 
 ```
-Full Match .mp4 → Detect Highlights → Cut Clips → Crop 9:16 → Score Overlay + Color Grade → Final .mp4
+Live Stream / File → Detect Highlights → Cut Clips → Crop 9:16 → Score Overlay + Color Grade → Final .mp4
 ```
 
 ### Core Modules
 
 | File | Purpose |
 |------|---------|
-| `pipeline.py` | Main entry point, orchestrates all stages |
+| `fh.py` | Unified CLI entry point — browse, watch, record, highlights, goals |
+| `stream_discovery.py` | Fetch & parse IPTV M3U playlists, filter sports, cache, probe |
+| `stream_browser.py` | Rich interactive stream browser with search/filter/select |
+| `live_monitor.py` | Rich Live dashboard for real-time detection status |
+| `live_detector.py` | Real-time highlight detection for live stream segments |
+| `stream_capture.py` | Stream recording and segmentation via ffmpeg |
+| `pipeline.py` | File-based pipeline, orchestrates all stages |
 | `highlight_audio.py` | Audio energy analysis — detects crowd noise spikes |
 | `highlight_cv.py` | YOLO-based event detection — ball near goal, fast ball, player clustering, goalkeeper saves |
 | `highlight_combined.py` | Multi-signal scoring — merges audio + CV signals |
@@ -21,42 +27,43 @@ Full Match .mp4 → Detect Highlights → Cut Clips → Crop 9:16 → Score Over
 | `kickoff_detector.py` | OCR-based broadcast clock reading to find kickoff timestamps |
 | `goal_detector.py` | Computes goal windows from match_config.json + kickoff offsets |
 | `score_overlay.py` | ffmpeg drawtext score overlay with `enable='between(t,S,E)'` |
-| `train_model.py` | Downloads SoccerNet + Soccana datasets, trains custom YOLOv8s |
-| `dashboard.py` | Web dashboard for monitoring training at localhost:8501 |
 
 ### Detection Strategies
 
 - **Audio-only** (`--strategy audio`): Fastest, ~80% accuracy. Detects crowd noise peaks.
 - **Combined** (`--strategy combined`): Audio + YOLO CV. Better but slower.
-- **Goal mode** (`--mode goals --config match_config.json`): Extracts individual goal clips with score overlay using known match data.
+- **Goal mode** (`goals` subcommand): Extracts individual goal clips with score overlay using known match data.
 
 ### Custom Soccer Model
 
 - Unified classes: `0=ball, 1=player, 2=goalkeeper, 3=referee`
-- `SoccerDetector` auto-selects: `soccer_yolov8s.pt` > `soccana_yolov11n.pt` > `yolov8n.pt` (COCO fallback)
-- COCO yolov8n ball detection: 14-27%. Custom model target: 60-80%.
+- `SoccerDetector` auto-selects: `soccer_yolov8s.pt` > `soccana_yolov11n.pt`
 - SAHI sliced inference (`--sahi`) for better small ball detection
+- Model stored at `models/soccer_yolov8s.pt`
 
 ## Usage
 
 ```bash
-# Generic highlights (audio-based, fast)
-python pipeline.py --input match.mp4
+# Browse IPTV sports streams
+python fh.py browse
+python fh.py browse --search "bein" --auto-watch
+
+# Live highlight detection (primary use case)
+python fh.py watch "http://stream.url/live.m3u8"
+python fh.py watch "acestream://ffbf8c..." --strategy combined
+
+# Record stream for later processing
+python fh.py record "http://stream.url" -o match.mp4 -d 7200
+
+# Generic highlights from file (audio-based, fast)
+python fh.py highlights match.mp4
+python fh.py highlights match.mp4 --strategy combined --crop smart
 
 # Goal clips with score overlay
-python pipeline.py --input match.mp4 --mode goals --config match_config.json --crop smart
+python fh.py goals match.mp4 -c match_config.json
 
-# With custom model and SAHI
-python pipeline.py --input match.mp4 --mode goals --config match_config.json --crop smart --model models/soccer_yolov8s.pt --sahi
-
-# Train custom model
-python train_model.py                      # full: download + merge + train
-python train_model.py --skip-download      # reuse downloaded data
-python train_model.py --resume             # resume from checkpoint
-python train_model.py --test-soccana       # test pre-trained Soccana model
-
-# Training dashboard
-python dashboard.py                        # open http://localhost:8501
+# Legacy pipeline entry point (still works)
+python pipeline.py --input match.mp4
 ```
 
 ## Key Technical Details
@@ -74,10 +81,11 @@ python dashboard.py                        # open http://localhost:8501
 - Bidirectional EMA smoothing per scene, velocity-clamped to prevent jarring pans
 - Render via OpenCV frame crop piped to ffmpeg
 
-### Training
-- Datasets: SoccerNet_v3_H250 (Zenodo, 19K imgs) + Soccana (HuggingFace, 25K imgs)
-- MPS has a known shape mismatch bug in Ultralytics TAL — patched in `venv/.../ultralytics/utils/tal.py` (CPU fallback for masked assignment)
-- Checkpoints saved every epoch to `runs/soccer_v1/weights/last.pt` — resume with `--resume`
+### Stream Discovery
+- Fetches public IPTV M3U playlists from iptv-org and Free-TV
+- File-based caching in `.stream_cache/` with 6h TTL
+- Sports keyword filtering, concurrent probe for availability
+- Acestream URLs auto-converted to local HTTP API
 
 ### ffmpeg
 - `drawtext` filter requires `homebrew-ffmpeg/ffmpeg` tap (default brew ffmpeg lacks freetype)
@@ -87,7 +95,13 @@ python dashboard.py                        # open http://localhost:8501
 
 ```
 .
-├── pipeline.py              # Main entry point
+├── fh.py                    # Unified CLI entry point
+├── stream_discovery.py      # IPTV stream fetching & parsing
+├── stream_browser.py        # Rich interactive stream browser
+├── live_monitor.py          # Rich Live detection dashboard
+├── live_detector.py         # Real-time highlight detection
+├── stream_capture.py        # Stream recording & segmentation
+├── pipeline.py              # File-based pipeline
 ├── highlight_audio.py       # Audio energy detection
 ├── highlight_cv.py          # YOLO event detection
 ├── highlight_combined.py    # Multi-signal fusion
@@ -96,17 +110,14 @@ python dashboard.py                        # open http://localhost:8501
 ├── kickoff_detector.py      # OCR clock reading
 ├── goal_detector.py         # Goal window computation
 ├── score_overlay.py         # Score text overlay
-├── train_model.py           # Dataset download + training
-├── dashboard.py             # Training monitor web UI
 ├── match_config.json        # Match metadata (goals, teams, etc.)
 ├── requirements.txt         # Python dependencies
 ├── models/                  # Trained weights (.gitignored)
-├── data/                    # Datasets (.gitignored)
-├── runs/                    # Training artifacts (.gitignored)
+├── web/                     # Browser version (vanilla JS + ffmpeg.wasm)
 └── venv/                    # Python virtual environment
 ```
 
 ## Dependencies
 
-Python: `moviepy numpy scipy opencv-python ultralytics yt-dlp requests sahi huggingface_hub`
+Python: `moviepy numpy scipy opencv-python ultralytics requests sahi rich easyocr`
 System: `ffmpeg` (with freetype/drawtext support)

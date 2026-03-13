@@ -4,7 +4,7 @@ soccer_detector.py — Inference wrapper for custom soccer YOLO model
 Supports:
     - Standard YOLO inference (fast)
     - SAHI sliced inference (better for small ball detection)
-    - Automatic fallback to COCO-pretrained yolov8n.pt
+    - Automatic model selection (custom trained or pre-trained Soccana)
 
 Classes (custom model):
     0: ball
@@ -46,7 +46,6 @@ COCO_BALL = 32
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_CUSTOM_MODEL = os.path.join(BASE_DIR, "models", "soccer_yolov8s.pt")
 DEFAULT_SOCCANA_MODEL = os.path.join(BASE_DIR, "models", "soccana_yolov11n.pt")
-DEFAULT_COCO_MODEL = os.path.join(BASE_DIR, "yolov8n.pt")
 
 
 @dataclass
@@ -77,7 +76,6 @@ class SoccerDetector:
     Automatically selects the best available model:
         1. models/soccer_yolov8s.pt  (custom trained — best)
         2. models/soccana_yolov11n.pt (pre-trained Soccana — good)
-        3. yolov8n.pt (COCO generic — fallback)
     """
 
     def __init__(self, model_path=None, use_sahi=False, conf_thresholds=None):
@@ -104,7 +102,11 @@ class SoccerDetector:
         for path in [DEFAULT_CUSTOM_MODEL, DEFAULT_SOCCANA_MODEL]:
             if os.path.isfile(path):
                 return path
-        return DEFAULT_COCO_MODEL
+        raise FileNotFoundError(
+            f"No soccer model found. Expected at:\n"
+            f"  {DEFAULT_CUSTOM_MODEL}\n"
+            f"  {DEFAULT_SOCCANA_MODEL}"
+        )
 
     def _load_model(self, model_path):
         """Load the YOLO model and determine class mapping."""

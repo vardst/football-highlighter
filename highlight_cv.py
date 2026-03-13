@@ -9,7 +9,7 @@ and goalkeeper diving near the ball (goal signal).
 import cv2
 import numpy as np
 
-from soccer_detector import SoccerDetector, BALL, PLAYER, GOALKEEPER, REFEREE
+from soccer_detector import SoccerDetector
 
 
 def detect_events_yolo(video_path, sample_rate=5, model_path=None,

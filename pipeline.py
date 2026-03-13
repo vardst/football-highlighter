@@ -7,6 +7,8 @@ Usage:
     python pipeline.py --input match.mp4 --strategy audio      # audio-only (fastest)
     python pipeline.py --input match.mp4 --strategy combined   # audio + CV (best quality)
     python pipeline.py --input match.mp4 --mode goals --config match_config.json
+    python pipeline.py --input "http://..." --mode record --output match.mp4
+    python pipeline.py --input "http://..." --mode live --strategy audio
 
 Requirements:
     pip install -r requirements.txt
@@ -54,8 +56,9 @@ def run_pipeline(
     use_sahi=False,
     aspect="9:16",
 ):
-    if not os.path.isfile(input_path):
-        print(f"Error: input file not found: {input_path}")
+    from stream_capture import is_stream_url
+    if not os.path.isfile(input_path) and not is_stream_url(input_path):
+        print(f"Error: input not found: {input_path}")
         return
 
     tmp_dir = "/tmp/highlight_clips"
@@ -333,13 +336,18 @@ Examples:
   python pipeline.py --input match.mp4 --strategy combined --crop smart
   python pipeline.py --input match.mp4 --top-percent 15 --max-duration 5
   python pipeline.py --input match.mp4 --mode goals --config match_config.json
+  python pipeline.py --input "http://..." --mode record --output match.mp4
+  python pipeline.py --input "http://..." --mode live
+  python pipeline.py --input "http://..." --mode live --strategy combined --clip-pre 20 --clip-post 60
         """,
     )
     parser.add_argument("--input", required=True, help="Path to full match .mp4")
     parser.add_argument("--output", default="highlights_9x16.mp4",
                         help="Output file path (default: highlights_9x16.mp4)")
-    parser.add_argument("--mode", choices=["highlights", "goals"], default="highlights",
-                        help="Mode: highlights (generic reel) or goals (individual goal clips)")
+    parser.add_argument("--mode", choices=["highlights", "goals", "record", "live"],
+                        default="highlights",
+                        help="Mode: highlights (generic reel), goals (individual clips), "
+                        "record (save stream to file), live (real-time detection)")
     parser.add_argument("--config", default=None,
                         help="Path to match_config.json (required for --mode goals)")
     parser.add_argument("--strategy", choices=["audio", "combined"], default="audio",
@@ -364,11 +372,49 @@ Examples:
     parser.add_argument("--output-dir", default=None,
                         help="Output directory for goal clips (default: same as input)")
 
+    # Stream / live mode arguments
+    parser.add_argument("--stream-duration", type=int, default=None,
+                        help="Max recording duration in seconds (record mode)")
+    parser.add_argument("--segment-duration", type=int, default=30,
+                        help="Segment duration in seconds (live mode, default: 30)")
+    parser.add_argument("--clip-pre", type=int, default=15,
+                        help="Seconds before highlight to include in clip (live mode)")
+    parser.add_argument("--clip-post", type=int, default=90,
+                        help="Seconds after highlight to include in clip (live mode)")
+
     args = parser.parse_args()
 
     model = args.model or _default_model()
 
-    if args.mode == "goals":
+    if args.mode == "record":
+        from stream_capture import record_stream, is_stream_url
+        if not is_stream_url(args.input):
+            parser.error("--mode record requires a stream URL (http/https/rtmp/rtsp)")
+        recorded = record_stream(args.input, args.output, args.stream_duration)
+        print(f"Process with: python pipeline.py --input {recorded}")
+
+    elif args.mode == "live":
+        from stream_capture import segment_stream, is_stream_url
+        from live_detector import LiveDetector
+        if not is_stream_url(args.input):
+            parser.error("--mode live requires a stream URL (http/https/rtmp/rtsp)")
+        detector = LiveDetector(
+            strategy=args.strategy,
+            model_path=model,
+            use_sahi=args.sahi,
+            clip_pre_sec=args.clip_pre,
+            clip_post_sec=args.clip_post,
+            output_dir=args.output_dir or "live_highlights",
+            aspect=args.aspect,
+        )
+        segment_stream(
+            args.input,
+            "/tmp/live_segments",
+            args.segment_duration,
+            detector.on_segment_ready,
+        )
+
+    elif args.mode == "goals":
         if not args.config:
             parser.error("--config is required when using --mode goals")
         run_goals_pipeline(

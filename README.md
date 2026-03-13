@@ -1,10 +1,10 @@
 # Football Highlighter
 
-Automated soccer highlight pipeline: full match video in, polished vertical clips out.
+Stream-first soccer highlight pipeline: discover live streams, watch with real-time detection, or process recorded matches into polished vertical clips.
 
 ```
-Full Match .mp4 ──► Detect Highlights ──► Cut Clips ──► Crop 9:16 ──► Score Overlay ──► Final .mp4
-                    (audio / CV)          (ffmpeg)      (YOLO/center)  (+ color grade)
+Live Stream / File ──► Detect Highlights ──► Cut Clips ──► Crop 9:16 ──► Score Overlay ──► Final .mp4
+                       (audio / CV)          (ffmpeg)      (YOLO/center)  (+ color grade)
 ```
 
 ## Demo
@@ -13,6 +13,9 @@ Full Match .mp4 ──► Detect Highlights ──► Cut Clips ──► Crop 9
 
 ## Features
 
+- **Stream discovery** — browse IPTV sports streams with Rich interactive UI
+- **Live detection** — real-time highlight detection with Rich dashboard while watching streams
+- **Acestream support** — `acestream://` URLs auto-converted to local HTTP API
 - **Audio-based detection** — crowd noise spike analysis with median filtering and percentile thresholds
 - **YOLO computer vision** — ball tracking, player clustering, goalkeeper saves, fast ball detection
 - **Combined scoring** — multi-signal fusion of audio + CV for best accuracy
@@ -20,7 +23,7 @@ Full Match .mp4 ──► Detect Highlights ──► Cut Clips ──► Crop 9
 - **Smart crop** — ball-tracking 9:16/1:1 reframe with camera-cut detection and velocity-clamped smoothing
 - **OCR kickoff detection** — reads broadcast match clock via EasyOCR to sync match time to video time
 - **Color grading** — cinematic, dramatic, vibrant presets via ffmpeg
-- **Custom YOLO model** — trained on SoccerNet + Soccana datasets (44K images) for 60-80% ball detection vs 14-27% with COCO
+- **Custom YOLO model** — trained on SoccerNet + Soccana datasets (44K images) for 60-80% ball detection
 - **Browser version** — runs entirely client-side with Web Audio API + ffmpeg.wasm ([try it](https://vardst.github.io/football-highlighter/))
 
 ## Quick Start
@@ -31,27 +34,33 @@ git clone https://github.com/vardst/football-highlighter.git
 cd football-highlighter
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-
-# Generic highlights (audio-based, fast)
-python pipeline.py --input match.mp4
-
-# Goal clips with score overlay
-python pipeline.py --input match.mp4 --mode goals --config match_config.json --crop smart
-
-# With custom model and SAHI
-python pipeline.py --input match.mp4 --mode goals --config match_config.json \
-    --crop smart --model models/soccer_yolov8s.pt --sahi
 ```
 
 ## Usage
 
-### Highlights Mode (default)
+### Browse & Watch Streams (primary use case)
+
+```bash
+# Browse IPTV sports streams
+python fh.py browse
+python fh.py browse --search "bein"
+python fh.py browse --auto-watch              # select → immediately start watching
+
+# Live highlight detection
+python fh.py watch "http://stream.url/live.m3u8"
+python fh.py watch "acestream://ffbf8c687c..." --strategy combined
+
+# Record stream for later processing
+python fh.py record "http://stream.url" -o match.mp4 -d 7200
+```
+
+### Highlights Mode
 
 Detects the most exciting moments by audio energy and outputs a single compiled highlight reel.
 
 ```bash
-python pipeline.py --input match.mp4 --strategy audio --top-percent 10
-python pipeline.py --input match.mp4 --strategy combined --crop smart  # audio + CV
+python fh.py highlights match.mp4
+python fh.py highlights match.mp4 --strategy combined --crop smart
 ```
 
 | Flag | Default | Description |
@@ -70,7 +79,7 @@ python pipeline.py --input match.mp4 --strategy combined --crop smart  # audio +
 Extracts each goal as a separate clip with score overlay, using a match config file.
 
 ```bash
-python pipeline.py --input match.mp4 --mode goals --config match_config.json
+python fh.py goals match.mp4 -c match_config.json
 ```
 
 #### Match Config Format
@@ -107,18 +116,6 @@ The pipeline will:
 6. Apply score overlay (updates at the goal moment)
 7. Color grade
 
-### Training a Custom Model
-
-```bash
-python train_model.py                  # full: download datasets + merge + train
-python train_model.py --skip-download  # reuse downloaded data
-python train_model.py --resume         # resume from checkpoint
-python train_model.py --test-soccana   # quick test with pre-trained model
-python dashboard.py                    # training monitor at localhost:8501
-```
-
-Datasets: SoccerNet_v3_H250 (19K images) + Soccana (25K images), unified to 4 classes: ball, player, goalkeeper, referee.
-
 ## Browser Version
 
 A fully client-side web app that runs in the browser — no server, no uploads, no installs.
@@ -139,11 +136,18 @@ python -m http.server 8080
 - YOLO smart crop (browser uses center crop)
 - OCR kickoff detection (browser uses manual input)
 - Combined audio+CV detection strategy
+- Live stream detection
 
 ## Architecture
 
 ```
-pipeline.py                  Main entry point, orchestrates all stages
+fh.py                        Unified CLI entry point
+stream_discovery.py          IPTV M3U playlist fetching & parsing
+stream_browser.py            Rich interactive stream browser
+live_monitor.py              Rich Live detection dashboard
+live_detector.py             Real-time highlight detection for streams
+stream_capture.py            Stream recording & segmentation
+pipeline.py                  File-based pipeline (legacy entry point)
 highlight_audio.py           Audio energy analysis, peak detection
 highlight_cv.py              YOLO-based event detection
 highlight_combined.py        Multi-signal scoring (audio + CV)
@@ -152,14 +156,12 @@ soccer_detector.py           Unified YOLO wrapper with SAHI support
 kickoff_detector.py          OCR broadcast clock reading
 goal_detector.py             Goal window computation from match config
 score_overlay.py             ffmpeg drawtext score overlay
-train_model.py               Dataset download + model training
-dashboard.py                 Training monitor web UI
 web/                         Browser version (vanilla JS + ffmpeg.wasm)
 ```
 
 ## Dependencies
 
-**Python:** `moviepy numpy scipy opencv-python ultralytics yt-dlp requests sahi huggingface_hub`
+**Python:** `moviepy numpy scipy opencv-python ultralytics requests sahi rich easyocr`
 
 **System:** `ffmpeg` with freetype/drawtext support
 ```bash
