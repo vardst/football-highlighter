@@ -1,5 +1,4 @@
-# Models
-models/*.pt
+
 
 # Python
 __pycache__/
