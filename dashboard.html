@@ -565,6 +565,9 @@ async function stopWatch() {
 
 // ── HLS Player ───────────────────────────────────────────────────
 
+let playerRetries = 0;
+const MAX_PLAYER_RETRIES = 15;
+
 function initPlayer() {
     if (playerAttached) return;
     const video = document.getElementById('player');
@@ -572,16 +575,53 @@ function initPlayer() {
     const loading = document.getElementById('player-loading');
 
     card.classList.add('active');
+    loading.textContent = 'Connecting to stream...';
     loading.classList.remove('hidden');
+    playerRetries = 0;
 
+    _tryAttachHls();
+}
+
+async function _tryAttachHls() {
+    const video = document.getElementById('player');
+    const loading = document.getElementById('player-loading');
     const hlsUrl = `${API}/api/watch/hls/stream.m3u8`;
 
+    // Check if playlist exists yet
+    try {
+        const resp = await fetch(hlsUrl);
+        if (!resp.ok) {
+            playerRetries++;
+            if (playerRetries < MAX_PLAYER_RETRIES) {
+                loading.textContent = `Waiting for stream... (${playerRetries})`;
+                setTimeout(_tryAttachHls, 3000);
+            } else {
+                loading.textContent = 'Could not connect to stream';
+            }
+            return;
+        }
+    } catch (e) {
+        playerRetries++;
+        if (playerRetries < MAX_PLAYER_RETRIES) {
+            setTimeout(_tryAttachHls, 3000);
+        }
+        return;
+    }
+
     if (Hls.isSupported()) {
+        if (hls) { hls.destroy(); hls = null; }
         hls = new Hls({
-            liveSyncDurationCount: 3,
-            liveMaxLatencyDurationCount: 6,
+            liveSyncDurationCount: 2,
+            liveMaxLatencyDurationCount: 5,
+            maxBufferLength: 10,
+            maxMaxBufferLength: 20,
             enableWorker: true,
-            lowLatencyMode: true,
+            fragLoadingMaxRetry: 6,
+            fragLoadingRetryDelay: 2000,
+            manifestLoadingMaxRetry: 6,
+            manifestLoadingRetryDelay: 2000,
+            levelLoadingMaxRetry: 6,
+            levelLoadingRetryDelay: 2000,
         });
         hls.loadSource(hlsUrl);
         hls.attachMedia(video);
@@ -589,13 +629,25 @@ function initPlayer() {
             loading.classList.add('hidden');
             video.play().catch(() => {});
         });
+        hls.on(Hls.Events.FRAG_LOADED, () => {
+            loading.classList.add('hidden');
+        });
         hls.on(Hls.Events.ERROR, (event, data) => {
             if (data.fatal) {
                 if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-                    // Retry after delay (stream may still be starting)
-                    setTimeout(() => { if (hls) hls.startLoad(); }, 3000);
+                    // Recover: destroy and retry from scratch
+                    hls.destroy();
+                    hls = null;
+                    playerRetries++;
+                    if (playerRetries < MAX_PLAYER_RETRIES) {
+                        loading.textContent = `Reconnecting... (${playerRetries})`;
+                        loading.classList.remove('hidden');
+                        setTimeout(_tryAttachHls, 3000);
+                    }
+                } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+                    hls.recoverMediaError();
                 } else {
-                    loading.textContent = 'Stream playback error';
+                    loading.textContent = 'Playback error';
                     loading.classList.remove('hidden');
                 }
             }

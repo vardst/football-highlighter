@@ -76,7 +76,10 @@
       "Bash(python fh.py browse:*)",
       "Bash(python fh.py watch:*)",
       "Bash(grep:*)",
-      "Bash(./venv/bin/pip install:*)"
+      "Bash(./venv/bin/pip install:*)",
+      "Bash(kill:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)"
     ]
   }
 }
