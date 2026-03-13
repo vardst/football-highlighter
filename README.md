@@ -116,6 +116,21 @@ The pipeline will:
 6. Apply score overlay (updates at the goal moment)
 7. Color grade
 
+### Web Dashboard
+
+A browser-based UI for stream browsing, recording, live watching with highlight detection, and clip downloading.
+
+```bash
+# Run dashboard (http://localhost:5555)
+pip install -r requirements.txt && python dashboard.py
+
+# Run dashboard exposed on LAN
+python dashboard.py --host 0.0.0.0
+
+# Run dashboard with ngrok (public URL)
+pip install -r requirements.txt && python dashboard.py & ngrok http 5555
+```
+
 ## Browser Version
 
 A fully client-side web app that runs in the browser — no server, no uploads, no installs.
@@ -142,6 +157,7 @@ python -m http.server 8080
 
 ```
 fh.py                        Unified CLI entry point
+dashboard.py                 Web dashboard (Flask backend + REST API)
 stream_discovery.py          IPTV M3U playlist fetching & parsing
 stream_browser.py            Rich interactive stream browser
 live_monitor.py              Rich Live detection dashboard
