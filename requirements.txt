@@ -7,3 +7,4 @@ requests
 sahi
 rich>=13.0
 easyocr
+flask>=3.0

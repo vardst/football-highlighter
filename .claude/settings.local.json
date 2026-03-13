@@ -74,7 +74,9 @@
       "Bash(python -c:*)",
       "Bash(python:*)",
       "Bash(python fh.py browse:*)",
-      "Bash(python fh.py watch:*)"
+      "Bash(python fh.py watch:*)",
+      "Bash(grep:*)",
+      "Bash(./venv/bin/pip install:*)"
     ]
   }
 }
