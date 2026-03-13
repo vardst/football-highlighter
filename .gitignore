@@ -1,10 +1,4 @@
-# Datasets
-data/
-
-# Training artifacts
-runs/
-
-# Models (keep directory with .gitkeep)
+# Models
 models/*.pt
 
 # Python
@@ -21,7 +15,12 @@ venv/
 
 # Output directories
 goals_*/
+live_highlights/
+
+# Stream cache
+.stream_cache/
 
 # IDE
 .vscode/
 .idea/
+CLAUDE.md
