@@ -79,7 +79,8 @@
       "Bash(./venv/bin/pip install:*)",
       "Bash(kill:*)",
       "Bash(lsof:*)",
-      "Bash(xargs kill:*)"
+      "Bash(xargs kill:*)",
+      "Bash(pkill:*)"
     ]
   }
 }

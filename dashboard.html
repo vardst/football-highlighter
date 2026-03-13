@@ -540,6 +540,9 @@ async function stopRecord() {
 // ── Watch ────────────────────────────────────────────────────────
 
 async function startWatch(url, strategy) {
+    // Tear down existing player before switching
+    destroyPlayer();
+
     try {
         const resp = await fetch(`${API}/api/watch/start`, {
             method: 'POST',
@@ -549,7 +552,10 @@ async function startWatch(url, strategy) {
         const data = await resp.json();
         if (!resp.ok) { alert(data.error || 'Failed to start watching'); return; }
         startPolling();
-        // Delay player init to give HLS transcoder time to produce the first segments
+        // Show player card immediately with loading state, then try to attach HLS
+        document.getElementById('player-card').classList.add('active');
+        document.getElementById('player-loading').textContent = 'Switching channel...';
+        document.getElementById('player-loading').classList.remove('hidden');
         setTimeout(initPlayer, 6000);
     } catch (e) {
         alert('Error starting watch');

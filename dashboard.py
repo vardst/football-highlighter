@@ -387,11 +387,44 @@ def _watch_thread(url, strategy, stop_event, detector):
             state.watching["hls_proc"] = None
 
 
+def _stop_watching():
+    """Stop the current watch session. Returns once processes are terminated."""
+    with state.lock:
+        watch = state.watching
+        if not watch or watch["status"] not in ("connecting", "connected"):
+            return
+        proc = watch.get("proc")
+        hls_proc = watch.get("hls_proc")
+        stop_event = watch.get("stop_event")
+
+    if stop_event:
+        stop_event.set()
+
+    for p in [proc, hls_proc]:
+        if p and p.poll() is None:
+            try:
+                p.stdin.write(b"q")
+                p.stdin.flush()
+            except (BrokenPipeError, OSError):
+                p.terminate()
+
+    # Wait for thread to finish
+    t = watch.get("thread") if watch else None
+    if t and t.is_alive():
+        t.join(timeout=5)
+
+    with state.lock:
+        state.watching = None
+
+
 @app.route("/api/watch/start", methods=["POST"])
 def api_watch_start():
+    # Stop existing session if any
     with state.lock:
-        if state.watching and state.watching["status"] in ("connecting", "connected"):
-            return jsonify({"error": "Already watching"}), 409
+        already_watching = state.watching and state.watching["status"] in ("connecting", "connected")
+
+    if already_watching:
+        _stop_watching()
 
     data = request.json or {}
     url = data.get("url", "").strip()
@@ -441,22 +474,9 @@ def api_watch_stop():
         watch = state.watching
         if not watch or watch["status"] not in ("connecting", "connected"):
             return jsonify({"error": "Not watching"}), 409
-        proc = watch.get("proc")
-        hls_proc = watch.get("hls_proc")
-        stop_event = watch.get("stop_event")
 
-    if stop_event:
-        stop_event.set()
-
-    for p in [proc, hls_proc]:
-        if p and p.poll() is None:
-            try:
-                p.stdin.write(b"q")
-                p.stdin.flush()
-            except (BrokenPipeError, OSError):
-                p.terminate()
-
-    return jsonify({"status": "stopping"})
+    _stop_watching()
+    return jsonify({"status": "stopped"})
 
 
 # ── HLS stream serving ────────────────────────────────────────────────
